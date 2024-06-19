@@ -182,6 +182,8 @@ namespace ITBrainsBlogAPI.Controllers
             return Ok(users);
         }
 
+
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser([FromRoute] int id)
         {
@@ -210,7 +212,6 @@ namespace ITBrainsBlogAPI.Controllers
             }
             return Ok(user);
         }
-
 
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] string email)
@@ -297,6 +298,7 @@ namespace ITBrainsBlogAPI.Controllers
             }
         }
 
+
         [HttpPost("{id}/upload-profile-image")]
         public async Task<IActionResult> UploadProfileImage([FromRoute] int id, IFormFile file)
         {
@@ -330,7 +332,43 @@ namespace ITBrainsBlogAPI.Controllers
             return Ok(new { Message = "Profile image removed successfully", ImageUrl = user.ImageUrl });
         }
 
+        [HttpPut("edit")]
+        public async Task<IActionResult> EditUser([FromBody] UpdateUserDTO model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            var user = await _userManager.Users.SingleOrDefaultAsync(u => u.Id == model.UserId);
+            if (user == null)
+            {
+                return NotFound(new { Message = "User not found" });
+            }
+            if (!FileExtensions.IsImage(model.ImgFile))
+            {
+                return BadRequest("This file type is not accepted.");
+            }
 
+            var fileName = await _service.UploadFile(model.ImgFile);
+            var profileImageUrl = $"https://itbblogstorage.blob.core.windows.net/itbcontainer/{fileName}";
+            user.ImageUrl = profileImageUrl;
+            user.Name = model.Name;
+            user.Surname = model.Surname;
+
+            var result = await _userManager.UpdateAsync(user);
+            if (result.Succeeded)
+            {
+                return Ok("User updated");
+            }
+
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+
+            return BadRequest(ModelState);
+
+        }
 
 
 

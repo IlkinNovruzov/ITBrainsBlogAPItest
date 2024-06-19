@@ -232,7 +232,6 @@ namespace ITBrainsBlogAPI.Controllers
                .Where(b => b.AppUserId == user.Id)
                .OrderByDescending(b => b.CreatedAt)
                .ToListAsync();
-
             return Ok(blogs);
         }
         [HttpPost("like/{blogId}")]
@@ -256,7 +255,7 @@ namespace ITBrainsBlogAPI.Controllers
             {
                 _context.Likes.Remove(existingLike);
                 await _context.SaveChangesAsync();
-                return Ok("Like removed.");
+                return Ok(blog);
             }
             else
             {
@@ -268,9 +267,18 @@ namespace ITBrainsBlogAPI.Controllers
 
                 _context.Likes.Add(like);
                 await _context.SaveChangesAsync();
-                return Ok("Blog liked.");
+                return Ok(blog);
             }
         }
+
+        [HttpGet("is-liked")]
+        public async Task<IActionResult> IsLiked(int userId, int blogId)
+        {
+            var like = await _context.Likes.FirstOrDefaultAsync(l => l.AppUserId == userId && l.BlogId == blogId);
+
+            return Ok(like != null);
+        }
+        #region Review
         [HttpPost("add-review")]
         public async Task<ActionResult> AddReviewBlog([FromBody] ReviewDTO model, [FromHeader(Name = "Authorization")] string token)
         {
@@ -381,7 +389,7 @@ namespace ITBrainsBlogAPI.Controllers
 
             return Ok("Review deleted.");
         }
-
+        #endregion
 
 
 
