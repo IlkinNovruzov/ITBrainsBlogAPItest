@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ITBrainsBlogAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240615070332_migtests")]
-    partial class migtests
+    [Migration("20240624123249_migInit")]
+    partial class migInit
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -210,6 +210,52 @@ namespace ITBrainsBlogAPI.Migrations
                     b.ToTable("Likes");
                 });
 
+            modelBuilder.Entity("ITBrainsBlogAPI.Models.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByIp")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ReplacedByToken")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("Revoked")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RevokedByIp")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("ITBrainsBlogAPI.Models.Review", b =>
                 {
                     b.Property<int>("Id")
@@ -232,7 +278,6 @@ namespace ITBrainsBlogAPI.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<int?>("ParentReviewId")
-                        .IsRequired()
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -244,6 +289,24 @@ namespace ITBrainsBlogAPI.Migrations
                     b.HasIndex("ParentReviewId");
 
                     b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("ITBrainsBlogAPI.Models.SavedBlog", b =>
+                {
+                    b.Property<int>("AppUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BlogId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SavedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("AppUserId", "BlogId");
+
+                    b.HasIndex("BlogId");
+
+                    b.ToTable("SavedBlogs");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -390,6 +453,17 @@ namespace ITBrainsBlogAPI.Migrations
                     b.Navigation("Blog");
                 });
 
+            modelBuilder.Entity("ITBrainsBlogAPI.Models.RefreshToken", b =>
+                {
+                    b.HasOne("ITBrainsBlogAPI.Models.AppUser", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("ITBrainsBlogAPI.Models.Review", b =>
                 {
                     b.HasOne("ITBrainsBlogAPI.Models.AppUser", "AppUser")
@@ -407,14 +481,32 @@ namespace ITBrainsBlogAPI.Migrations
                     b.HasOne("ITBrainsBlogAPI.Models.Review", "ParentReview")
                         .WithMany("Reviews")
                         .HasForeignKey("ParentReviewId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("AppUser");
 
                     b.Navigation("Blog");
 
                     b.Navigation("ParentReview");
+                });
+
+            modelBuilder.Entity("ITBrainsBlogAPI.Models.SavedBlog", b =>
+                {
+                    b.HasOne("ITBrainsBlogAPI.Models.AppUser", "AppUser")
+                        .WithMany("SavedBlogs")
+                        .HasForeignKey("AppUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ITBrainsBlogAPI.Models.Blog", "Blog")
+                        .WithMany("SavedBlogs")
+                        .HasForeignKey("BlogId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AppUser");
+
+                    b.Navigation("Blog");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -474,7 +566,11 @@ namespace ITBrainsBlogAPI.Migrations
 
                     b.Navigation("Likes");
 
+                    b.Navigation("RefreshTokens");
+
                     b.Navigation("Reviews");
+
+                    b.Navigation("SavedBlogs");
                 });
 
             modelBuilder.Entity("ITBrainsBlogAPI.Models.Blog", b =>
@@ -484,6 +580,8 @@ namespace ITBrainsBlogAPI.Migrations
                     b.Navigation("Likes");
 
                     b.Navigation("Reviews");
+
+                    b.Navigation("SavedBlogs");
                 });
 
             modelBuilder.Entity("ITBrainsBlogAPI.Models.Review", b =>

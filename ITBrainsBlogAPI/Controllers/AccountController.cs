@@ -31,14 +31,16 @@ namespace ITBrainsBlogAPI.Controllers
         private readonly SignInManager<AppUser> _signInManager;
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
+        private readonly TokenService _tokenService;
         public AzureBlobService _service;
 
-        public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IEmailService emailService, IConfiguration configuration, AzureBlobService service)
+        public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IEmailService emailService, IConfiguration configuration, TokenService tokenService, AzureBlobService service)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _emailService = emailService;
             _configuration = configuration;
+            _tokenService = tokenService;
             _service = service;
         }
 
@@ -116,8 +118,11 @@ namespace ITBrainsBlogAPI.Controllers
 
             if (result.Succeeded)
             {
-                var jwtToken = GenerateJwtToken(user);
-                return Ok(jwtToken);
+                //var ipAddress = HttpContext.Connection.RemoteIpAddress.ToString();
+                var (jwtToken, refreshToken) = _tokenService.GenerateTokens(user);
+                return Ok(new { JwtToken = jwtToken, RefreshToken = refreshToken });
+                //var jwtToken = GenerateJwtToken(user);
+                //return Ok(jwtToken);
             }
 
             if (result.IsLockedOut)
@@ -181,8 +186,6 @@ namespace ITBrainsBlogAPI.Controllers
             var users = await _userManager.Users.ToListAsync();
             return Ok(users);
         }
-
-
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser([FromRoute] int id)
@@ -333,7 +336,7 @@ namespace ITBrainsBlogAPI.Controllers
         }
 
         [HttpPut("edit")]
-        public async Task<IActionResult> EditUser([FromBody] UpdateUserDTO model)
+        public async Task<IActionResult> EditUser([FromForm] UpdateUserDTO model)
         {
             if (!ModelState.IsValid)
             {
@@ -344,14 +347,21 @@ namespace ITBrainsBlogAPI.Controllers
             {
                 return NotFound(new { Message = "User not found" });
             }
-            if (!FileExtensions.IsImage(model.ImgFile))
+            if (model.ImageDeleted)
             {
-                return BadRequest("This file type is not accepted.");
+                user.ImageUrl = "https://itbblogstorage.blob.core.windows.net/itbcontainer/0e39b3d3-971a-43c4-bf37-5f517b6bd0c8_defaultimage.png";
             }
+            if (model.ImgFile != null)
+            {
+                if (!FileExtensions.IsImage(model.ImgFile))
+                {
+                    return BadRequest("This file type is not accepted.");
+                }
 
-            var fileName = await _service.UploadFile(model.ImgFile);
-            var profileImageUrl = $"https://itbblogstorage.blob.core.windows.net/itbcontainer/{fileName}";
-            user.ImageUrl = profileImageUrl;
+                var fileName = await _service.UploadFile(model.ImgFile);
+                var profileImageUrl = $"https://itbblogstorage.blob.core.windows.net/itbcontainer/{fileName}";
+                user.ImageUrl = profileImageUrl;
+            }
             user.Name = model.Name;
             user.Surname = model.Surname;
 
@@ -373,6 +383,19 @@ namespace ITBrainsBlogAPI.Controllers
 
 
 
+        [HttpPost("refresh-token")]
+        public IActionResult RefreshToken([FromBody] string refreshToken)
+        {
+            try
+            {
+                var newJwtToken = _tokenService.RefreshJwtToken(refreshToken);
+                return Ok(new { jwtToken = newJwtToken });
+            }
+            catch (SecurityTokenException)
+            {
+                return Unauthorized("Invalid refresh token");
+            }
+        }
 
 
 

@@ -172,7 +172,6 @@ namespace ITBrainsBlogAPI.Migrations
                     AppUserId = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ReviewCount = table.Column<int>(type: "int", nullable: false),
                     ViewCount = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -181,6 +180,33 @@ namespace ITBrainsBlogAPI.Migrations
                     table.ForeignKey(
                         name: "FK_Blogs_AspNetUsers_AppUserId",
                         column: x => x.AppUserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RefreshTokens",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Token = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsRevoked = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedByIp = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Created = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Revoked = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    RevokedByIp = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ReplacedByToken = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefreshTokens", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RefreshTokens_AspNetUsers_UserId",
+                        column: x => x.UserId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -212,8 +238,7 @@ namespace ITBrainsBlogAPI.Migrations
                 columns: table => new
                 {
                     AppUserId = table.Column<int>(type: "int", nullable: false),
-                    BlogId = table.Column<int>(type: "int", nullable: false),
-                    Id = table.Column<int>(type: "int", nullable: false)
+                    BlogId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -239,7 +264,7 @@ namespace ITBrainsBlogAPI.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Comment = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: true),
                     AppUserId = table.Column<int>(type: "int", nullable: false),
                     BlogId = table.Column<int>(type: "int", nullable: false),
                     ParentReviewId = table.Column<int>(type: "int", nullable: true)
@@ -263,6 +288,31 @@ namespace ITBrainsBlogAPI.Migrations
                         name: "FK_Reviews_Reviews_ParentReviewId",
                         column: x => x.ParentReviewId,
                         principalTable: "Reviews",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SavedBlogs",
+                columns: table => new
+                {
+                    AppUserId = table.Column<int>(type: "int", nullable: false),
+                    BlogId = table.Column<int>(type: "int", nullable: false),
+                    SavedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SavedBlogs", x => new { x.AppUserId, x.BlogId });
+                    table.ForeignKey(
+                        name: "FK_SavedBlogs_AspNetUsers_AppUserId",
+                        column: x => x.AppUserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_SavedBlogs_Blogs_BlogId",
+                        column: x => x.BlogId,
+                        principalTable: "Blogs",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -322,6 +372,11 @@ namespace ITBrainsBlogAPI.Migrations
                 column: "BlogId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_UserId",
+                table: "RefreshTokens",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Reviews_AppUserId",
                 table: "Reviews",
                 column: "AppUserId");
@@ -335,6 +390,11 @@ namespace ITBrainsBlogAPI.Migrations
                 name: "IX_Reviews_ParentReviewId",
                 table: "Reviews",
                 column: "ParentReviewId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SavedBlogs_BlogId",
+                table: "SavedBlogs",
+                column: "BlogId");
         }
 
         /// <inheritdoc />
@@ -362,7 +422,13 @@ namespace ITBrainsBlogAPI.Migrations
                 name: "Likes");
 
             migrationBuilder.DropTable(
+                name: "RefreshTokens");
+
+            migrationBuilder.DropTable(
                 name: "Reviews");
+
+            migrationBuilder.DropTable(
+                name: "SavedBlogs");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

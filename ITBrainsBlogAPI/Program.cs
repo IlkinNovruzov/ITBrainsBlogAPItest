@@ -47,6 +47,7 @@ namespace ITBrainsBlogAPI
             builder.Services.AddSwaggerGen();
             builder.Services.AddScoped<Services.IEmailService, Services.EmailSender>();
             builder.Services.AddScoped<AzureBlobService>();
+            builder.Services.AddScoped<TokenService>();
             // JWT Authentication
             builder.Services.AddAuthentication(options =>
             {

@@ -1,4 +1,6 @@
-﻿namespace ITBrainsBlogAPI.Models
+﻿using System.Text.Json.Serialization;
+
+namespace ITBrainsBlogAPI.Models
 {
     public class Blog
     {
@@ -9,7 +11,10 @@
         public AppUser AppUser { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        [JsonIgnore]
         public List<Like> Likes { get; set; }
+        [JsonIgnore]
+        public List<SavedBlog> SavedBlogs { get; set; }
         public List<Image> Images { get; set; }
         public List<Review> Reviews { get; set; }
         public int ViewCount { get; set; } 

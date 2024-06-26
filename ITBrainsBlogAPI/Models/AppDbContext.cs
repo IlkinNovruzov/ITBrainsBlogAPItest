@@ -13,6 +13,8 @@ namespace ITBrainsBlogAPI.Models
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Image> Images { get; set; }
         public DbSet<Like> Likes { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<SavedBlog> SavedBlogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -36,6 +38,8 @@ namespace ITBrainsBlogAPI.Models
                 .WithMany(b => b.Reviews)
                 .HasForeignKey(r => r.BlogId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+
             modelBuilder.Entity<Like>()
      .HasKey(l => new { l.AppUserId, l.BlogId });
 
@@ -43,13 +47,48 @@ namespace ITBrainsBlogAPI.Models
                 .HasOne(l => l.AppUser)
                 .WithMany(u => u.Likes)
                 .HasForeignKey(l => l.AppUserId)
-                .OnDelete(DeleteBehavior.Restrict); // veya DeleteBehavior.NoAction
+                .OnDelete(DeleteBehavior.Restrict); // or DeleteBehavior.NoAction
 
             modelBuilder.Entity<Like>()
                 .HasOne(l => l.Blog)
                 .WithMany(b => b.Likes)
                 .HasForeignKey(l => l.BlogId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<RefreshToken>()
+           .HasOne(rt => rt.User)
+           .WithMany(u => u.RefreshTokens)
+           .HasForeignKey(rt => rt.UserId);
+
+            modelBuilder.Entity<SavedBlog>()
+   .HasKey(l => new { l.AppUserId, l.BlogId });
+
+            modelBuilder.Entity<SavedBlog>()
+                .HasOne(l => l.AppUser)
+                .WithMany(u => u.SavedBlogs)
+                .HasForeignKey(l => l.AppUserId)
+                .OnDelete(DeleteBehavior.Restrict); // or DeleteBehavior.NoAction
+
+            modelBuilder.Entity<SavedBlog>()
+                .HasOne(l => l.Blog)
+                .WithMany(b => b.SavedBlogs)
+                .HasForeignKey(l => l.BlogId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+         //   modelBuilder.Entity<SavedBlog>()
+         //.HasOne(sb => sb.User)
+         //.WithMany(u => u.SavedBlogs)
+         //.HasForeignKey(sb => sb.UserId)
+         //.IsRequired()
+         //.OnDelete(DeleteBehavior.NoAction);
+
+         //   modelBuilder.Entity<SavedBlog>()
+         //       .HasOne(sb => sb.Blog)
+         //       .WithMany(b => b.SavedBlogs)
+         //       .HasForeignKey(sb => sb.BlogId)
+         //       .IsRequired()
+         //       .OnDelete(DeleteBehavior.NoAction);
+
             base.OnModelCreating(modelBuilder);
         }
     }

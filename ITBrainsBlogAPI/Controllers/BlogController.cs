@@ -24,14 +24,16 @@ namespace ITBrainsBlogAPI.Controllers
         private readonly IConfiguration _configuration;
         private readonly ILogger<WeatherForecastController> _logger;
         public AzureBlobService _service;
+        private readonly TokenService _tokenService;
 
-        public BlogController(AppDbContext context, UserManager<AppUser> userManager, IConfiguration configuration, ILogger<WeatherForecastController> logger, AzureBlobService service)
+        public BlogController(AppDbContext context, UserManager<AppUser> userManager, IConfiguration configuration, ILogger<WeatherForecastController> logger, AzureBlobService service, TokenService tokenService)
         {
             _context = context;
             _userManager = userManager;
             _configuration = configuration;
             _logger = logger;
             _service = service;
+            _tokenService = tokenService;
         }
 
         [HttpGet]
@@ -74,7 +76,7 @@ namespace ITBrainsBlogAPI.Controllers
                 return BadRequest(ModelState);
             }
 
-            var user = await ValidateTokenAndGetUserAsync(token);
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
 
             if (user == null)
             {
@@ -234,10 +236,17 @@ namespace ITBrainsBlogAPI.Controllers
                .ToListAsync();
             return Ok(blogs);
         }
+
+        private bool BlogExists(int id)
+        {
+            return _context.Blogs.Any(e => e.Id == id);
+        } 
+
+        #region Like
         [HttpPost("like/{blogId}")]
         public async Task<ActionResult> LikeBlog([FromRoute] int blogId, [FromHeader(Name = "Authorization")] string token)
         {
-            var user = await ValidateTokenAndGetUserAsync(token);
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null)
             {
                 return Unauthorized("Invalid token or user.");
@@ -278,11 +287,48 @@ namespace ITBrainsBlogAPI.Controllers
 
             return Ok(like != null);
         }
+
+        [HttpGet("liked-blogs")]
+        public async Task<IActionResult> GetLikedBlogs([FromHeader(Name = "Authorization")] string token)
+        {
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
+            if (user == null) return Unauthorized();
+
+            var likedBlogs = await _context.Likes
+                .Where(l => l.AppUserId == user.Id)
+                .Include(l => l.Blog)
+                .ToListAsync();
+
+            return Ok(likedBlogs);
+        }
+
+        [HttpGet("blog/{blogId}/likes")]
+        public async Task<IActionResult> GetBlogLikes([FromRoute] int blogId, [FromHeader(Name = "Authorization")] string token)
+        {
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
+            if (user == null) return Unauthorized();
+
+            var blogLikes = await _context.Likes
+                .Where(l => l.BlogId == blogId)
+                .Include(l => l.AppUser)
+                .ToListAsync();
+
+            var blogLikesDto = blogLikes.Select(l => new
+            {
+                UserId = l.AppUser.Id,
+                Name = l.AppUser.Name,
+                UserEmail = l.AppUser.Email,
+            });
+
+            return Ok(blogLikesDto);
+        }
+        #endregion
+
         #region Review
         [HttpPost("add-review")]
         public async Task<ActionResult> AddReviewBlog([FromBody] ReviewDTO model, [FromHeader(Name = "Authorization")] string token)
         {
-            var user = await ValidateTokenAndGetUserAsync(token);
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null)
             {
                 return Unauthorized("Invalid token or user.");
@@ -323,7 +369,7 @@ namespace ITBrainsBlogAPI.Controllers
         [HttpPut("edit-review/{reviewId}")]
         public async Task<ActionResult> EditReview([FromRoute] int reviewId, [FromBody] ReviewDTO model, [FromHeader(Name = "Authorization")] string token)
         {
-            var user = await ValidateTokenAndGetUserAsync(token);
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null)
             {
                 return Unauthorized("Invalid token or user.");
@@ -367,7 +413,7 @@ namespace ITBrainsBlogAPI.Controllers
         [HttpDelete("delete-review/{reviewId}")]
         public async Task<ActionResult> DeleteReview([FromRoute] int reviewId, [FromHeader(Name = "Authorization")] string token)
         {
-            var user = await ValidateTokenAndGetUserAsync(token);
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null)
             {
                 return Unauthorized("Invalid token or user.");
@@ -391,54 +437,17 @@ namespace ITBrainsBlogAPI.Controllers
         }
         #endregion
 
-
-
-
-
-        private bool BlogExists(int id)
+        #region SaveBlog
+        [HttpPost("save")]
+        public async Task<IActionResult> SaveBlog([FromRoute] int blogId, [FromHeader(Name = "Authorization")] string token)
         {
-            return _context.Blogs.Any(e => e.Id == id);
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
+            if (user == null) return Unauthorized();
+            await _context.SavedBlogs
         }
 
-        private async Task<AppUser> ValidateTokenAndGetUserAsync(string token)
-        {
-            if (string.IsNullOrEmpty(token) || !token.StartsWith("Bearer "))
-            {
-                return null;
-            }
+        #endregion
 
-            var tokenValue = token.Substring("Bearer ".Length).Trim();
 
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"])),
-                ValidateIssuer = true,
-                ValidIssuer = _configuration["Jwt:Issuer"],
-                ValidateAudience = true,
-                ValidAudience = _configuration["Jwt:Audience"],
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
-            };
-
-            try
-            {
-                SecurityToken validatedToken;
-                var principal = tokenHandler.ValidateToken(tokenValue, validationParameters, out validatedToken);
-
-                var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
-                if (userIdClaim == null)
-                {
-                    return null;
-                }
-
-                return await _userManager.FindByEmailAsync(userIdClaim.Value);
-            }
-            catch
-            {
-                return null;
-            }
-        }
     }
 }
