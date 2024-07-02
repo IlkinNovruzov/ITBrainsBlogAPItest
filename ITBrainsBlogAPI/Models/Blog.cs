@@ -20,5 +20,6 @@ namespace ITBrainsBlogAPI.Models
         public int ViewCount { get; set; } 
         public int ReviewCount => Reviews?.Count ?? 0;
         public int LikeCount => Likes?.Count ?? 0;
+        public int SaveCount => SavedBlogs?.Count ?? 0;
     }
 }

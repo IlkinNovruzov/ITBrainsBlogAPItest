@@ -75,19 +75,15 @@ namespace ITBrainsBlogAPI.Models
                 .HasForeignKey(l => l.BlogId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-         //   modelBuilder.Entity<SavedBlog>()
-         //.HasOne(sb => sb.User)
-         //.WithMany(u => u.SavedBlogs)
-         //.HasForeignKey(sb => sb.UserId)
-         //.IsRequired()
-         //.OnDelete(DeleteBehavior.NoAction);
+            modelBuilder.Entity<Blog>().Navigation(b => b.Images).AutoInclude();
 
-         //   modelBuilder.Entity<SavedBlog>()
-         //       .HasOne(sb => sb.Blog)
-         //       .WithMany(b => b.SavedBlogs)
-         //       .HasForeignKey(sb => sb.BlogId)
-         //       .IsRequired()
-         //       .OnDelete(DeleteBehavior.NoAction);
+            modelBuilder.Entity<Blog>().Navigation(b => b.Reviews).AutoInclude();
+
+            modelBuilder.Entity<Blog>().Navigation(b => b.AppUser).AutoInclude();
+
+            modelBuilder.Entity<Blog>().Navigation(b => b.Likes).AutoInclude();
+
+            modelBuilder.Entity<Blog>().Navigation(b => b.SavedBlogs).AutoInclude();
 
             base.OnModelCreating(modelBuilder);
         }

@@ -48,6 +48,7 @@ namespace ITBrainsBlogAPI
             builder.Services.AddScoped<Services.IEmailService, Services.EmailSender>();
             builder.Services.AddScoped<AzureBlobService>();
             builder.Services.AddScoped<TokenService>();
+            builder.Services.AddAutoMapper(typeof(MappingProfile));
             // JWT Authentication
             builder.Services.AddAuthentication(options =>
             {

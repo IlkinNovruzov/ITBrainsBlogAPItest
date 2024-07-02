@@ -7,7 +7,7 @@ namespace ITBrainsBlogAPI.Services
     {
         BlobServiceClient _blobServiceClient;
         BlobContainerClient _blobContainerClient;
-        string azureConnectionstring = "DefaultEndpointsProtocol=https;AccountName=itbblogstorage;AccountKey=wdvMxzent7Z96HWY859Jl6ZkECtplUOLh8h12/R9Nri2o3rjNm1DrhBuK+PyJAIdDUkqVUq+jru/+AStcWOzwA==;EndpointSuffix=core.windows.net";
+        string azureConnectionstring = "DefaultEndpointsProtocol=https;AccountName=itbrainsblogapistorage;AccountKey=Fvr95hGtI81L9j3ZI4ese3eaxOXMSL9SEDF68iAA7R3nrAZWFnuVdsoF6qyQu1LztKsPhd+pwIVl+AStzdDyog==;EndpointSuffix=core.windows.net";
 
         public AzureBlobService()
         {

@@ -12,6 +12,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using AutoMapper;
 
 namespace ITBrainsBlogAPI.Controllers
 {
@@ -23,53 +24,46 @@ namespace ITBrainsBlogAPI.Controllers
         private readonly UserManager<AppUser> _userManager;
         private readonly IConfiguration _configuration;
         private readonly ILogger<WeatherForecastController> _logger;
-        public AzureBlobService _service;
         private readonly TokenService _tokenService;
+        private readonly IMapper _mapper;
+        public AzureBlobService _service;
 
-        public BlogController(AppDbContext context, UserManager<AppUser> userManager, IConfiguration configuration, ILogger<WeatherForecastController> logger, AzureBlobService service, TokenService tokenService)
+        public BlogController(AppDbContext context, UserManager<AppUser> userManager, IConfiguration configuration, ILogger<WeatherForecastController> logger, TokenService tokenService, IMapper mapper, AzureBlobService service)
         {
             _context = context;
             _userManager = userManager;
             _configuration = configuration;
             _logger = logger;
-            _service = service;
             _tokenService = tokenService;
+            _mapper = mapper;
+            _service = service;
         }
 
         [HttpGet]
         public async Task<ActionResult<List<Blog>>> GetBlogs()
         {
 
-            var blogs = await _context.Blogs
-                .Include(b => b.Images)
-                .Include(b => b.Reviews)
-                .Include(b => b.AppUser)
-                .Include(b => b.Likes)
-                .OrderByDescending(b => b.Likes.Count)
-                .ToListAsync();
-            return Ok(blogs);
+            var blogs = await _context.Blogs.OrderByDescending(b => b.Likes.Count).ToListAsync();
+
+            var blogDTOs = _mapper.Map<List<BlogDTO>>(blogs);
+
+            return Ok(blogDTOs);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Blog>> GetBlog([FromRoute] int id)
+        public async Task<ActionResult<BlogDTO>> GetBlog([FromRoute] int id)
         {
-            var blog = await _context.Blogs
-                .Include(b => b.Images)
-                .Include(b => b.Reviews.Where(r => r.ParentReviewId == null))
-                .ThenInclude(r => r.ParentReview)
-                .Include(b => b.AppUser)
-                .Include(b => b.Likes)
-                .SingleOrDefaultAsync(b => b.Id == id);
+            var blog = await _context.Blogs.SingleOrDefaultAsync(b => b.Id == id);
 
-            if (blog == null)
-            {
-                return NotFound();
-            }
+            if (blog == null) return NotFound();
 
-            return blog;
+            var blogDTO = _mapper.Map<BlogDTO>(blog);
+
+            return Ok(blogDTO);
         }
+
         [HttpPost("create")]
-        public async Task<ActionResult<Blog>> AddBlog([FromForm] BlogDTO model, [FromHeader(Name = "Authorization")] string token)
+        public async Task<ActionResult<Blog>> AddBlog([FromForm] CreateBlogDTO model, [FromHeader(Name = "Authorization")] string token)
         {
             if (!ModelState.IsValid)
             {
@@ -130,7 +124,7 @@ namespace ITBrainsBlogAPI.Controllers
         }
 
         [HttpPut("edit/{blogId}")]
-        public async Task<ActionResult<Blog>> EditBlog([FromRoute] int blogId, [FromForm] BlogDTO model)
+        public async Task<ActionResult<Blog>> EditBlog([FromRoute] int blogId, [FromForm] CreateBlogDTO model)
         {
             if (!ModelState.IsValid)
             {
@@ -227,20 +221,17 @@ namespace ITBrainsBlogAPI.Controllers
                 return NotFound(new { Message = "User not found" });
             }
 
-            var blogs = await _context.Blogs
-               .Include(b => b.Images)
-               .Include(b => b.Reviews)
-               .Include(b => b.Likes)
-               .Where(b => b.AppUserId == user.Id)
-               .OrderByDescending(b => b.CreatedAt)
-               .ToListAsync();
-            return Ok(blogs);
+            var blogs = await _context.Blogs.Where(b => b.AppUserId == user.Id).OrderByDescending(b => b.CreatedAt).ToListAsync();
+
+            var blogDTOs = _mapper.Map<List<BlogDTO>>(blogs);
+
+            return Ok(blogDTOs);
         }
 
         private bool BlogExists(int id)
         {
             return _context.Blogs.Any(e => e.Id == id);
-        } 
+        }
 
         #region Like
         [HttpPost("like/{blogId}")]
@@ -294,12 +285,11 @@ namespace ITBrainsBlogAPI.Controllers
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null) return Unauthorized();
 
-            var likedBlogs = await _context.Likes
-                .Where(l => l.AppUserId == user.Id)
-                .Include(l => l.Blog)
-                .ToListAsync();
+            var likedBlogs = await _context.Blogs.Where(b => b.Likes.Any(l => l.AppUserId == user.Id)).ToListAsync();
 
-            return Ok(likedBlogs);
+            var blogDTOs = _mapper.Map<List<BlogDTO>>(likedBlogs);
+
+            return Ok(blogDTOs);
         }
 
         [HttpGet("blog/{blogId}/likes")]
@@ -326,7 +316,7 @@ namespace ITBrainsBlogAPI.Controllers
 
         #region Review
         [HttpPost("add-review")]
-        public async Task<ActionResult> AddReviewBlog([FromBody] ReviewDTO model, [FromHeader(Name = "Authorization")] string token)
+        public async Task<ActionResult> AddReviewBlog([FromBody] CreateReviewDTO model, [FromHeader(Name = "Authorization")] string token)
         {
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null)
@@ -344,10 +334,7 @@ namespace ITBrainsBlogAPI.Controllers
             if (model.ParentReviewId.HasValue)
             {
                 parentReview = await _context.Reviews.FindAsync(model.ParentReviewId.Value);
-                if (parentReview == null)
-                {
-                    return NotFound("Parent review not found.");
-                }
+                if (parentReview == null) return NotFound("Parent review not found.");
             }
 
             var review = new Review
@@ -363,11 +350,11 @@ namespace ITBrainsBlogAPI.Controllers
             _context.Reviews.Add(review);
             await _context.SaveChangesAsync();
 
-            return Ok("Review added.");
+            return Ok("Review Added.");
         }
 
         [HttpPut("edit-review/{reviewId}")]
-        public async Task<ActionResult> EditReview([FromRoute] int reviewId, [FromBody] ReviewDTO model, [FromHeader(Name = "Authorization")] string token)
+        public async Task<ActionResult> EditReview([FromRoute] int reviewId, [FromBody] CreateReviewDTO model, [FromHeader(Name = "Authorization")] string token)
         {
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null)
@@ -438,12 +425,50 @@ namespace ITBrainsBlogAPI.Controllers
         #endregion
 
         #region SaveBlog
-        [HttpPost("save")]
+        [HttpPost("save/{blogId}")]
         public async Task<IActionResult> SaveBlog([FromRoute] int blogId, [FromHeader(Name = "Authorization")] string token)
         {
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
-            if (user == null) return Unauthorized();
-            await _context.SavedBlogs
+            if (user == null) return Unauthorized("Invalid token or user.");
+            var blog = await _context.Blogs.Include(b => b.SavedBlogs).FirstOrDefaultAsync(b => b.Id == blogId);
+            if (blog == null)
+            {
+                return NotFound("Blog not found.");
+            }
+
+            var existingSave = blog.SavedBlogs.FirstOrDefault(s => s.AppUserId == user.Id);
+
+            if (existingSave != null)
+            {
+                _context.SavedBlogs.Remove(existingSave);
+                await _context.SaveChangesAsync();
+                return Ok(blog);
+            }
+            else
+            {
+                var savedBlog = new SavedBlog
+                {
+                    BlogId = blog.Id,
+                    AppUserId = user.Id
+                };
+
+                _context.SavedBlogs.Add(savedBlog);
+                await _context.SaveChangesAsync();
+                return Ok(blog);
+            }
+        }
+
+        [HttpGet("saved-blogs")]
+        public async Task<IActionResult> GetSavedBlogs([FromHeader(Name = "Authorization")] string token)
+        {
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
+            if (user == null) return Unauthorized("Invalid token or user.");
+
+            var savedBlogs = await _context.Blogs.Where(b => b.SavedBlogs.Any(l => l.AppUserId == user.Id)).ToListAsync();
+
+            var blogDTOs = _mapper.Map<List<BlogDTO>>(savedBlogs);
+
+            return Ok(blogDTOs);
         }
 
         #endregion

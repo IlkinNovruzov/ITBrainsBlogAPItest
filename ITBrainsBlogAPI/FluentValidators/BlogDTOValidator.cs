@@ -3,7 +3,7 @@ using ITBrainsBlogAPI.DTOs;
 using ITBrainsBlogAPI.Services;
 namespace ITBrainsBlogAPI.FluentValidators
 {
-    public class BlogDTOValidator : AbstractValidator<BlogDTO>
+    public class BlogDTOValidator : AbstractValidator<CreateBlogDTO>
     {
         public BlogDTOValidator()
         {

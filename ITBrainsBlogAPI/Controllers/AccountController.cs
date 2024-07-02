@@ -52,7 +52,7 @@ namespace ITBrainsBlogAPI.Controllers
                 return BadRequest(ModelState);
             }
 
-            var user = new AppUser { UserName = model.Email, Email = model.Email, Name = model.Name, Surname = model.Surname, ImageUrl = "https://itbblogstorage.blob.core.windows.net/itbcontainer/0e39b3d3-971a-43c4-bf37-5f517b6bd0c8_defaultimage.png" };
+            var user = new AppUser { UserName = model.Email, Email = model.Email, Name = model.Name, Surname = model.Surname, ImageUrl = "https://itbrainsblogapistorage.blob.core.windows.net/itbcontainer/defaultimage.png" };
             var result = await _userManager.CreateAsync(user, model.Password);
             if (result.Succeeded)
             {
@@ -301,7 +301,6 @@ namespace ITBrainsBlogAPI.Controllers
             }
         }
 
-
         [HttpPost("{id}/upload-profile-image")]
         public async Task<IActionResult> UploadProfileImage([FromRoute] int id, IFormFile file)
         {
@@ -316,7 +315,7 @@ namespace ITBrainsBlogAPI.Controllers
             }
 
             var fileName = await _service.UploadFile(file);
-            var profileImageUrl = $"https://itbblogstorage.blob.core.windows.net/itbcontainer/{fileName}";
+            var profileImageUrl = $"https://itbrainsblogapistorage.blob.core.windows.net/itbcontainer/{fileName}";
             user.ImageUrl = profileImageUrl;
             await _userManager.UpdateAsync(user);
             return Ok(new { Message = "Profile image uploaded successfully", ImageUrl = user.ImageUrl });
@@ -349,7 +348,7 @@ namespace ITBrainsBlogAPI.Controllers
             }
             if (model.ImageDeleted)
             {
-                user.ImageUrl = "https://itbblogstorage.blob.core.windows.net/itbcontainer/0e39b3d3-971a-43c4-bf37-5f517b6bd0c8_defaultimage.png";
+                user.ImageUrl = "https://itbrainsblogapistorage.blob.core.windows.net/itbcontainer/defaultimage.png";
             }
             if (model.ImgFile != null)
             {
@@ -359,7 +358,7 @@ namespace ITBrainsBlogAPI.Controllers
                 }
 
                 var fileName = await _service.UploadFile(model.ImgFile);
-                var profileImageUrl = $"https://itbblogstorage.blob.core.windows.net/itbcontainer/{fileName}";
+                var profileImageUrl = $"https://itbrainsblogapistorage.blob.core.windows.net/itbcontainer/{fileName}";
                 user.ImageUrl = profileImageUrl;
             }
             user.Name = model.Name;
@@ -379,9 +378,6 @@ namespace ITBrainsBlogAPI.Controllers
             return BadRequest(ModelState);
 
         }
-
-
-
 
         [HttpPost("refresh-token")]
         public IActionResult RefreshToken([FromBody] string refreshToken)

@@ -1,0 +1,35 @@
+﻿using AutoMapper;
+using ITBrainsBlogAPI.Models;
+using ITBrainsBlogAPI.DTOs;
+
+namespace ITBrainsBlogAPI.Services
+{
+    public class MappingProfile : Profile
+    {
+        public MappingProfile()
+        {
+            CreateMap<Blog, BlogDTO>()
+               .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.AppUser.Email))
+               .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.AppUser.Name))
+               .ForMember(dest => dest.UserSurname, opt => opt.MapFrom(src => src.AppUser.Surname))
+               .ForMember(dest => dest.UserImageUrl, opt => opt.MapFrom(src => src.AppUser.ImageUrl))
+               .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.Images))
+               .ForMember(dest => dest.LikeCount, opt => opt.MapFrom(src => src.Likes.Count))
+               .ForMember(dest => dest.ReviewCount, opt => opt.MapFrom(src => src.Reviews.Count))
+               .ForMember(dest => dest.SaveCount, opt => opt.MapFrom(src => src.SavedBlogs.Count))
+               .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
+               .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => src.UpdatedAt));
+
+            CreateMap<Image, ImageDTO>();
+
+            CreateMap<Review, ReviewDTO>()
+               .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.AppUser.Email))
+               .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.AppUser.Name))
+               .ForMember(dest => dest.UserSurname, opt => opt.MapFrom(src => src.AppUser.Surname))
+               .ForMember(dest => dest.UserImageUrl, opt => opt.MapFrom(src => src.AppUser.ImageUrl))
+               .ForMember(dest => dest.Comment, opt => opt.MapFrom(src => src.Comment))
+               .ForMember(dest => dest.Date, opt => opt.MapFrom(src => src.Date))
+               .ForMember(dest => dest.Replies, opt => opt.MapFrom(src => src.Reviews));
+        }
+    }
+}

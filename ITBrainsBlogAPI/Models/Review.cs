@@ -8,7 +8,6 @@ namespace ITBrainsBlogAPI.Models
         public string Comment { get; set; }
         public DateTime? Date { get; set; }
         public int AppUserId { get; set; }
-        [JsonIgnore]
         public AppUser AppUser { get; set; }
         public int BlogId { get; set; }
         [JsonIgnore]

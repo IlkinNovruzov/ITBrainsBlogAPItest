@@ -2,7 +2,7 @@
 
 namespace ITBrainsBlogAPI.DTOs
 {
-    public class ReviewDTO
+    public class CreateReviewDTO
     {
         public string Comment { get; set; }
         public int AppUserId { get; set; }
