@@ -6,7 +6,7 @@ namespace ITBrainsBlogAPI.Models
     {
         public int Id { get; set; }
         public string Comment { get; set; }
-        public DateTime? Date { get; set; }
+        public DateTime Date { get; set; }
         public int AppUserId { get; set; }
         public AppUser AppUser { get; set; }
         public int BlogId { get; set; }

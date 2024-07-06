@@ -43,7 +43,13 @@ namespace ITBrainsBlogAPI.Controllers
         public async Task<ActionResult<List<Blog>>> GetBlogs()
         {
 
-            var blogs = await _context.Blogs.OrderByDescending(b => b.Likes.Count).ToListAsync();
+            var blogs = await _context.Blogs
+                .Include(b => b.Images)
+                .Include(b => b.Reviews).ThenInclude(r => r.AppUser)
+                .Include(b => b.AppUser)
+                .Include(b => b.Likes)
+                .Include(b => b.SavedBlogs)
+                .OrderByDescending(b => b.Likes.Count).ToListAsync();
 
             var blogDTOs = _mapper.Map<List<BlogDTO>>(blogs);
 
@@ -53,7 +59,13 @@ namespace ITBrainsBlogAPI.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<BlogDTO>> GetBlog([FromRoute] int id)
         {
-            var blog = await _context.Blogs.SingleOrDefaultAsync(b => b.Id == id);
+            var blog = await _context.Blogs
+                .Include(b => b.Images)
+                .Include(b => b.Reviews).ThenInclude(r=>r.AppUser)
+                .Include(b => b.AppUser)
+                .Include(b => b.Likes)
+                .Include(b => b.SavedBlogs)
+                .SingleOrDefaultAsync(b => b.Id == id);
 
             if (blog == null) return NotFound();
 
@@ -221,7 +233,13 @@ namespace ITBrainsBlogAPI.Controllers
                 return NotFound(new { Message = "User not found" });
             }
 
-            var blogs = await _context.Blogs.Where(b => b.AppUserId == user.Id).OrderByDescending(b => b.CreatedAt).ToListAsync();
+            var blogs = await _context.Blogs
+                 .Include(b => b.Images)
+                .Include(b => b.Reviews).ThenInclude(r => r.AppUser)
+                .Include(b => b.AppUser)
+                .Include(b => b.Likes)
+                .Include(b => b.SavedBlogs)
+                .Where(b => b.AppUserId == user.Id).OrderByDescending(b => b.CreatedAt).ToListAsync();
 
             var blogDTOs = _mapper.Map<List<BlogDTO>>(blogs);
 
@@ -285,7 +303,13 @@ namespace ITBrainsBlogAPI.Controllers
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null) return Unauthorized();
 
-            var likedBlogs = await _context.Blogs.Where(b => b.Likes.Any(l => l.AppUserId == user.Id)).ToListAsync();
+            var likedBlogs = await _context.Blogs
+                .Include(b => b.Images)
+                .Include(b => b.Reviews).ThenInclude(r => r.AppUser)
+                .Include(b => b.AppUser)
+                .Include(b => b.Likes)
+                .Include(b => b.SavedBlogs)
+                .Where(b => b.Likes.Any(l => l.AppUserId == user.Id)).ToListAsync();
 
             var blogDTOs = _mapper.Map<List<BlogDTO>>(likedBlogs);
 
@@ -464,7 +488,12 @@ namespace ITBrainsBlogAPI.Controllers
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null) return Unauthorized("Invalid token or user.");
 
-            var savedBlogs = await _context.Blogs.Where(b => b.SavedBlogs.Any(l => l.AppUserId == user.Id)).ToListAsync();
+            var savedBlogs = await _context.Blogs
+                  .Include(b => b.Images)
+                .Include(b => b.Reviews).ThenInclude(r => r.AppUser)
+                .Include(b => b.AppUser)
+                .Include(b => b.Likes)
+                .Include(b => b.SavedBlogs).Where(b => b.SavedBlogs.Any(l => l.AppUserId == user.Id)).ToListAsync();
 
             var blogDTOs = _mapper.Map<List<BlogDTO>>(savedBlogs);
 

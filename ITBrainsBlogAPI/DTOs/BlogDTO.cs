@@ -5,14 +5,15 @@ namespace ITBrainsBlogAPI.DTOs
     public class BlogDTO
     {
         public int Id { get; set; }
+        public int UserId { get; set; }
         public string Title { get; set; }
         public string Body { get; set; }
         public string UserEmail { get; set; }
         public string UserName { get; set; }
         public string UserSurname { get; set; }
         public string UserImageUrl { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
+        public string CreatedAt { get; set; }
+        public string UpdatedAt { get; set; }
         public List<ImageDTO> Images { get; set; }
         public List<ReviewDTO> Reviews { get; set; }
         public int ViewCount { get; set; }
@@ -30,7 +31,7 @@ namespace ITBrainsBlogAPI.DTOs
     {
         public int Id { get; set; }
         public string Comment { get; set; }
-        public DateTime? Date { get; set; }
+        public string Date { get; set; }
         public string UserEmail { get; set; }
         public string UserName { get; set; } 
         public string UserSurname { get; set; }
