@@ -30,12 +30,16 @@ namespace ITBrainsBlogAPI.DTOs
     public class ReviewDTO
     {
         public int Id { get; set; }
+        public int UserId { get; set; }
+        public int ParentUserId { get; set; }
         public string Comment { get; set; }
         public string Date { get; set; }
         public string UserEmail { get; set; }
         public string UserName { get; set; } 
-        public string UserSurname { get; set; }
+        public string UserSurname { get; set; } 
         public string UserImageUrl { get; set; }
+        public string? ParentUserName { get; set; } 
+        public string? ParentUserSurname { get; set; }
         public int ParentId { get; set; }
         public List<ReviewDTO> Replies { get; set; } 
 

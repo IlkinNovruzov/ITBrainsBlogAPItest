@@ -75,9 +75,9 @@ namespace ITBrainsBlogAPI.Models
                 .HasForeignKey(l => l.BlogId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-                // modelBuilder.Entity<Blog>().Navigation(b => b.Images).AutoInclude();
+            // modelBuilder.Entity<Blog>().Navigation(b => b.Images).AutoInclude();
 
-               //   modelBuilder.Entity<Blog>().Navigation(b => b.Reviews);
+            //   modelBuilder.Entity<Blog>().Navigation(b => b.Reviews);
             //        modelBuilder.Entity<Blog>()
             //.Navigation(b => b.Reviews)
             //.AutoInclude();

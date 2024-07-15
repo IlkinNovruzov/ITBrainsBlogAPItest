@@ -33,8 +33,9 @@ namespace ITBrainsBlogAPI.Controllers
         private readonly IConfiguration _configuration;
         private readonly TokenService _tokenService;
         public AzureBlobService _service;
+        private readonly AppDbContext _context;
 
-        public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IEmailService emailService, IConfiguration configuration, TokenService tokenService, AzureBlobService service)
+        public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IEmailService emailService, IConfiguration configuration, TokenService tokenService, AzureBlobService service, AppDbContext context)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -42,6 +43,7 @@ namespace ITBrainsBlogAPI.Controllers
             _configuration = configuration;
             _tokenService = tokenService;
             _service = service;
+            _context = context;
         }
 
         [HttpPost("register")]
@@ -58,9 +60,7 @@ namespace ITBrainsBlogAPI.Controllers
             {
                 var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                 var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-                var confirmationLink = $"http://localhost:5173/confirm-email?userId={user.Id}&token={encodedToken}";
-                // var confirmationLink = Url.Action(,"ConfirmEmail", "Account", new { userId = user.Id, token = token }, Request.Scheme);
-                //  var confirmationLink = $"http://localhost:5173/confirm-email?userId={user.Id}&token={token}";
+                var confirmationLink = $"https://itb-blog.vercel.app/confirm-email?userId={user.Id}&token={encodedToken}";
                 try
                 {
                     await _emailService.SendEmailAsync(model.Email, "Confirm your email", $"Please confirm your account by <a href='{confirmationLink}'>clicking here</a>.");
@@ -180,21 +180,29 @@ namespace ITBrainsBlogAPI.Controllers
             });
         }
 
-        [HttpGet]
-        public async Task<ActionResult<List<IdentityUser>>> GetUsers()
-        {
-            var users = await _userManager.Users.ToListAsync();
-            return Ok(users);
-        }
+        
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser([FromRoute] int id)
         {
-            var user = await _userManager.Users.SingleOrDefaultAsync(u => u.Id == id);
+            var user = await _userManager.Users
+                .Include(u => u.Reviews)
+                .Include(u => u.Blogs)
+                .Include(u => u.Likes)
+                .Include(u => u.RefreshTokens)
+                .Include(u => u.SavedBlogs)
+                .SingleOrDefaultAsync(u => u.Id == id);
+
             if (user == null)
             {
                 return NotFound(new { Message = "User Not Found" });
             }
+
+            _context.Reviews.RemoveRange(user.Reviews);
+            _context.Blogs.RemoveRange(user.Blogs);
+            _context.Likes.RemoveRange(user.Likes);
+            _context.RefreshTokens.RemoveRange(user.RefreshTokens);
+            _context.SavedBlogs.RemoveRange(user.SavedBlogs);
 
             var result = await _userManager.DeleteAsync(user);
             if (!result.Succeeded)
@@ -202,8 +210,11 @@ namespace ITBrainsBlogAPI.Controllers
                 return BadRequest(result.Errors);
             }
 
+            await _context.SaveChangesAsync();
+
             return Ok(new { Message = "User deleted successfully" });
         }
+
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUser([FromRoute] int id)
@@ -398,7 +409,6 @@ namespace ITBrainsBlogAPI.Controllers
 
 
 
-
         private async Task<GoogleJsonWebSignature.Payload> ValidateGoogleTokenAsync(string token)
         {
             try
@@ -435,27 +445,5 @@ namespace ITBrainsBlogAPI.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-        private string GenerateJwtToken(GoogleJsonWebSignature.Payload payload)
-        {
-            var claims = new[]
-            {
-            new Claim(JwtClaimNames.Sub, payload.Subject),
-            new Claim(JwtClaimNames.Email, payload.Email),
-            new Claim(JwtClaimNames.Jti, Guid.NewGuid().ToString())
-        };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Authentication:Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Authentication:Jwt:Issuer"],
-                audience: _configuration["Authentication:Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(30),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
     }
-    //userin bloglari
 }

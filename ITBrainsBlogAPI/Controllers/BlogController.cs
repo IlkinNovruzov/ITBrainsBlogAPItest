@@ -61,7 +61,7 @@ namespace ITBrainsBlogAPI.Controllers
         {
             var blog = await _context.Blogs
                 .Include(b => b.Images)
-                .Include(b => b.Reviews).ThenInclude(r=>r.AppUser)
+                .Include(b => b.Reviews).ThenInclude(r => r.AppUser)
                 .Include(b => b.AppUser)
                 .Include(b => b.Likes)
                 .Include(b => b.SavedBlogs)
@@ -212,16 +212,26 @@ namespace ITBrainsBlogAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBlog([FromRoute] int id)
         {
-            var blog = await _context.Blogs.FindAsync(id);
+            var blog = await _context.Blogs.Include(b => b.Likes)
+                                           .Include(b => b.SavedBlogs)
+                                           .Include(b => b.Images)
+                                           .Include(b => b.Reviews)
+                                           .FirstOrDefaultAsync(b => b.Id == id);
             if (blog == null)
             {
                 return NotFound();
             }
 
+            _context.Likes.RemoveRange(blog.Likes);
+            _context.SavedBlogs.RemoveRange(blog.SavedBlogs);
+            _context.Images.RemoveRange(blog.Images);
+            _context.Reviews.RemoveRange(blog.Reviews);
+
             _context.Blogs.Remove(blog);
             await _context.SaveChangesAsync();
 
             return Ok("Removed");
+
         }
 
         [HttpGet("{id}/userblogs")]
@@ -244,11 +254,6 @@ namespace ITBrainsBlogAPI.Controllers
             var blogDTOs = _mapper.Map<List<BlogDTO>>(blogs);
 
             return Ok(blogDTOs);
-        }
-
-        private bool BlogExists(int id)
-        {
-            return _context.Blogs.Any(e => e.Id == id);
         }
 
         #region Like
@@ -339,6 +344,7 @@ namespace ITBrainsBlogAPI.Controllers
         #endregion
 
         #region Review
+
         [HttpPost("add-review")]
         public async Task<ActionResult> AddReviewBlog([FromBody] CreateReviewDTO model, [FromHeader(Name = "Authorization")] string token)
         {
@@ -425,26 +431,49 @@ namespace ITBrainsBlogAPI.Controllers
         public async Task<ActionResult> DeleteReview([FromRoute] int reviewId, [FromHeader(Name = "Authorization")] string token)
         {
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
-            if (user == null)
-            {
-                return Unauthorized("Invalid token or user.");
-            }
 
-            var review = await _context.Reviews.FindAsync(reviewId);
-            if (review == null)
-            {
-                return NotFound("Review not found.");
-            }
+            if (user == null) return Unauthorized("Invalid token or user.");
 
-            if (review.AppUserId != user.Id)
-            {
-                return Unauthorized("You do not have permission to delete this review.");
-            }
+            var review = await _context.Reviews.Include(r => r.Reviews).FirstOrDefaultAsync(r => r.Id == reviewId);
 
-            _context.Reviews.Remove(review);
+            if (review == null) return NotFound("Review not found.");
+
+            if (review.AppUserId != user.Id) return Unauthorized("You do not have permission to delete this review.");
+
+            await DeleteReviewRecursively(review);
+
             await _context.SaveChangesAsync();
 
-            return Ok("Review deleted.");
+            return Ok("Review and its replies deleted.");
+        }
+
+        [HttpPost("{id}/review-like")]
+        public async Task<IActionResult> ToggleLikeReview([FromRoute] int id, [FromBody] bool like, [FromHeader(Name = "Authorization")] string token)
+        {
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
+
+            if (user == null) return Unauthorized("Invalid token or user.");
+
+            var review = await _context.Reviews.FindAsync(id);
+            if (review == null)
+            {
+                return NotFound();
+            }
+
+            if (like)
+            {
+                review.LikeCount++;
+            }
+            else
+            {
+                if (review.LikeCount > 0)
+                {
+                    review.LikeCount--;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(review);
         }
         #endregion
 
@@ -502,6 +531,19 @@ namespace ITBrainsBlogAPI.Controllers
 
         #endregion
 
+        private async Task DeleteReviewRecursively(Review review)
+        {
+            // Get the replies to the current review
+            var replies = await _context.Reviews.Where(r => r.ParentReviewId == review.Id).ToListAsync();
 
+            foreach (var reply in replies)
+            {
+                // Recursively delete replies
+                await DeleteReviewRecursively(reply);
+            }
+
+            // Remove the current review
+            _context.Reviews.Remove(review);
+        }
     }
 }
