@@ -12,62 +12,32 @@ namespace ITBrainsBlogAPI.Services
     public class TokenService
     {
         private readonly IConfiguration _configuration;
-        private readonly AppDbContext _dbContext;
         private readonly UserManager<AppUser> _userManager;
 
-        public TokenService(IConfiguration configuration, AppDbContext dbContext, UserManager<AppUser> userManager)
+        public TokenService(IConfiguration configuration, UserManager<AppUser> userManager)
         {
             _configuration = configuration;
-            _dbContext = dbContext;
             _userManager = userManager;
         }
 
-        public (string jwtToken, string refreshToken) GenerateTokens(AppUser user)
+        public async Task<string> GenerateToken(AppUser user)
         {
-            var jwtToken = GenerateJwtToken(user);
-
-            var refreshToken = GenerateRefreshToken();
-
-            var tokenEntity = new RefreshToken
-            {
-                UserId = user.Id,
-                Token = refreshToken,
-                ExpiresAt = DateTime.Now.AddDays(30),
-                Created = DateTime.UtcNow,
-                CreatedByIp = "ipAddresslocalhost",
-                ReplacedByToken = jwtToken,
-                Revoked= DateTime.UtcNow,
-                RevokedByIp = jwtToken,
-                IsRevoked=true
-            };
-            _dbContext.RefreshTokens.Add(tokenEntity);
-            _dbContext.SaveChanges();
-
-            return (jwtToken, refreshToken);
-        }
-
-        public string RefreshJwtToken(string refreshToken)
-        {
-            var tokenEntity = _dbContext.RefreshTokens.FirstOrDefault(rt => rt.Token == refreshToken && rt.ExpiresAt > DateTime.Now);
-            if (tokenEntity == null)
-            {
-                throw new SecurityTokenException("Invalid refresh token");
-            }
-
-            var user = _dbContext.Users.Find(tokenEntity.UserId);
-
-            var jwtToken = GenerateJwtToken(user);
-
+            var jwtToken = await GenerateJwtToken(user);
             return jwtToken;
         }
 
-        private string GenerateJwtToken(AppUser user)
+        private async Task<string> GenerateJwtToken(AppUser user)
         {
-            var claims = new[]
+            var userRoles = await _userManager.GetRolesAsync(user);
+
+            var claims = new List<Claim>
             {
-            new Claim(JwtClaimNames.Sub, user.Email),
-            new Claim(JwtClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtClaimNames.Sub, user.Email),
+                new Claim(JwtClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
             };
+
+            claims.AddRange(userRoles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -76,20 +46,10 @@ namespace ITBrainsBlogAPI.Services
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddMinutes(10),
+                expires: DateTime.Now.AddDays(30),
                 signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        private string GenerateRefreshToken()
-        {
-            var randomNumber = new byte[32];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(randomNumber);
-                return Convert.ToBase64String(randomNumber);
-            }
         }
 
         public async Task<AppUser> ValidateTokenAndGetUserAsync(string token)

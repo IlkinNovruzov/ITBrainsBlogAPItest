@@ -68,7 +68,7 @@ namespace ITBrainsBlogAPI.Controllers.Admin
             return Ok(roles);
         }
 
-        [HttpPost("create")]
+        [HttpPost("role/create")]
         public async Task<IActionResult> AddRole([FromBody] string role)
         {
             var appRole = new AppRole
@@ -87,7 +87,7 @@ namespace ITBrainsBlogAPI.Controllers.Admin
             }
         }
 
-        [HttpPut("edit/{id}")]
+        [HttpPut("role/edit/{id}")]
         public async Task<IActionResult> EditRole([FromRoute] int id, [FromBody] string roleName)
         {
             var role = await _roleManager.FindByIdAsync(id.ToString());
@@ -110,7 +110,7 @@ namespace ITBrainsBlogAPI.Controllers.Admin
         }
 
 
-        [HttpDelete("delete/{id}")]
+        [HttpDelete("role/delete/{id}")]
         public async Task<IActionResult> DeleteRole(int id)
         {
             var role = await _roleManager.FindByIdAsync(id.ToString());

@@ -58,6 +58,16 @@ namespace ITBrainsBlogAPI.Controllers
             var result = await _userManager.CreateAsync(user, model.Password);
             if (result.Succeeded)
             {
+                var roleResult = await _userManager.AddToRoleAsync(user, "User");
+                if (!roleResult.Succeeded)
+                {
+                    foreach (var error in roleResult.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+                    return BadRequest(ModelState);
+                }
+
                 var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                 var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
                 var confirmationLink = $"https://itb-blog.vercel.app/confirm-email?userId={user.Id}&token={encodedToken}";
@@ -118,11 +128,8 @@ namespace ITBrainsBlogAPI.Controllers
 
             if (result.Succeeded)
             {
-                //var ipAddress = HttpContext.Connection.RemoteIpAddress.ToString();
-                var (jwtToken, refreshToken) = _tokenService.GenerateTokens(user);
-                return Ok(new { JwtToken = jwtToken, RefreshToken = refreshToken });
-                //var jwtToken = GenerateJwtToken(user);
-                //return Ok(jwtToken);
+                var jwtToken =await _tokenService.GenerateToken(user);
+                return Ok(jwtToken);
             }
 
             if (result.IsLockedOut)
@@ -180,7 +187,7 @@ namespace ITBrainsBlogAPI.Controllers
             });
         }
 
-        
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser([FromRoute] int id)
@@ -378,7 +385,7 @@ namespace ITBrainsBlogAPI.Controllers
             var result = await _userManager.UpdateAsync(user);
             if (result.Succeeded)
             {
-                return Ok("User updated");
+                return Ok(user);
             }
 
             foreach (var error in result.Errors)
@@ -390,19 +397,6 @@ namespace ITBrainsBlogAPI.Controllers
 
         }
 
-        [HttpPost("refresh-token")]
-        public IActionResult RefreshToken([FromBody] string refreshToken)
-        {
-            try
-            {
-                var newJwtToken = _tokenService.RefreshJwtToken(refreshToken);
-                return Ok(new { jwtToken = newJwtToken });
-            }
-            catch (SecurityTokenException)
-            {
-                return Unauthorized("Invalid refresh token");
-            }
-        }
 
 
 

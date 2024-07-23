@@ -346,7 +346,7 @@ namespace ITBrainsBlogAPI.Controllers
         #region Review
 
         [HttpPost("add-review")]
-        public async Task<ActionResult> AddReviewBlog([FromBody] CreateReviewDTO model, [FromHeader(Name = "Authorization")] string token)
+        public async Task<ActionResult<BlogDTO>> AddReviewBlog([FromBody] CreateReviewDTO model, [FromHeader(Name = "Authorization")] string token)
         {
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
             if (user == null)
@@ -380,7 +380,7 @@ namespace ITBrainsBlogAPI.Controllers
             _context.Reviews.Add(review);
             await _context.SaveChangesAsync();
 
-            return Ok("Review Added.");
+            return await GetBlog(model.BlogId);
         }
 
         [HttpPut("edit-review/{reviewId}")]
@@ -424,7 +424,7 @@ namespace ITBrainsBlogAPI.Controllers
             _context.Reviews.Update(existingReview);
             await _context.SaveChangesAsync();
 
-            return Ok("Review updated.");
+            return Ok(existingReview);
         }
 
         [HttpDelete("delete-review/{reviewId}")]
@@ -444,7 +444,8 @@ namespace ITBrainsBlogAPI.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok("Review and its replies deleted.");
+
+            return Ok("Removed");
         }
 
         [HttpPost("{id}/review-like")]
@@ -530,6 +531,30 @@ namespace ITBrainsBlogAPI.Controllers
         }
 
         #endregion
+
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<Blog>>> SearchBlogs([FromBody] string query)
+        {
+            if (string.IsNullOrEmpty(query))
+            {
+                return BadRequest("Query parameter is required");
+            }
+
+            query = query.ToLower();
+
+            var blogs = await _context.Blogs
+                .Where(b => b.Title.ToLower().Contains(query) || b.Body.ToLower().Contains(query))
+                .Include(b => b.AppUser)
+                .Include(b => b.Likes)
+                .Include(b => b.SavedBlogs)
+                .Include(b => b.Images)
+                .Include(b => b.Reviews)
+                .ToListAsync();
+
+            var blogDTOs = _mapper.Map<List<BlogDTO>>(blogs);
+
+            return Ok(blogDTOs);
+        }
 
         private async Task DeleteReviewRecursively(Review review)
         {
