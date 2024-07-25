@@ -234,6 +234,7 @@ namespace ITBrainsBlogAPI.Controllers
 
         }
 
+
         [HttpGet("{id}/userblogs")]
         public async Task<IActionResult> GetUserBlogs([FromRoute] int id)
         {
@@ -533,7 +534,7 @@ namespace ITBrainsBlogAPI.Controllers
         #endregion
 
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<Blog>>> SearchBlogs([FromBody] string query)
+        public async Task<ActionResult<IEnumerable<Blog>>> SearchBlogs([FromQuery] string query)
         {
             if (string.IsNullOrEmpty(query))
             {

@@ -1,4 +1,6 @@
 ﻿using ITBrainsBlogAPI.Models;
+using ITBrainsBlogAPI.DTOs;
+using ITBrainsBlogAPI.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,12 +14,15 @@ namespace ITBrainsBlogAPI.Controllers.Admin
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<AppRole> _roleManager;
         private readonly AppDbContext _context;
+        private readonly TokenService _tokenService;
 
-        public UserController(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, AppDbContext context)
+
+        public UserController(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, AppDbContext context, TokenService tokenService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context;
+            _tokenService = tokenService;
         }
 
         [HttpGet]
@@ -27,9 +32,15 @@ namespace ITBrainsBlogAPI.Controllers.Admin
             return Ok(users);
         }
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser([FromRoute] int id)
+        public async Task<IActionResult> DeleteUser([FromRoute] int id, [FromHeader(Name = "Authorization")] string token)
         {
-            var user = await _userManager.Users
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
+
+            if (user == null) return Unauthorized(new { Message = "Invalid token" });
+
+            if (!await _userManager.IsInRoleAsync(user, "admin")) return Forbid();
+
+            var removeUser = await _userManager.Users
                 .Include(u => u.Reviews)
                 .Include(u => u.Blogs)
                 .Include(u => u.Likes)
@@ -37,26 +48,53 @@ namespace ITBrainsBlogAPI.Controllers.Admin
                 .Include(u => u.SavedBlogs)
                 .SingleOrDefaultAsync(u => u.Id == id);
 
-            if (user == null)
-            {
-                return NotFound(new { Message = "User Not Found" });
-            }
+            if (removeUser == null) return NotFound(new { Message = "User Not Found" });
 
-            _context.Reviews.RemoveRange(user.Reviews);
-            _context.Blogs.RemoveRange(user.Blogs);
-            _context.Likes.RemoveRange(user.Likes);
-            _context.RefreshTokens.RemoveRange(user.RefreshTokens);
-            _context.SavedBlogs.RemoveRange(user.SavedBlogs);
+            _context.Reviews.RemoveRange(removeUser.Reviews);
+            _context.Blogs.RemoveRange(removeUser.Blogs);
+            _context.Likes.RemoveRange(removeUser.Likes);
+            _context.RefreshTokens.RemoveRange(removeUser.RefreshTokens);
+            _context.SavedBlogs.RemoveRange(removeUser.SavedBlogs);
 
-            var result = await _userManager.DeleteAsync(user);
-            if (!result.Succeeded)
-            {
-                return BadRequest(result.Errors);
-            }
+            var result = await _userManager.DeleteAsync(removeUser);
+            if (!result.Succeeded) return BadRequest(result.Errors);
 
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = "User deleted successfully" });
+        }
+
+        [HttpPost("{userId}")]
+        public async Task<IActionResult> AssignRole([FromRoute] int userId, [FromBody] List<AssignRoleDTO> list, [FromHeader(Name = "Authorization")] string token)
+        {
+            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
+
+            if (user == null) return Unauthorized(new { Message = "Invalid token" });
+
+            if (!await _userManager.IsInRoleAsync(user, "admin")) return Forbid();
+
+            var targetUser = await _userManager.FindByIdAsync(userId.ToString());
+            if (targetUser == null) return NotFound(new { Message = "User Not Found" });
+
+            foreach (var item in list)
+            {
+                IdentityResult result;
+                if (item.Status)
+                {
+                    result = await _userManager.AddToRoleAsync(targetUser, item.Name);
+                }
+                else
+                {
+                    result = await _userManager.RemoveFromRoleAsync(targetUser, item.Name);
+                }
+
+                if (!result.Succeeded)
+                {
+                    return BadRequest(result.Errors);
+                }
+            }
+
+            return Ok(new { Message = "Roles updated successfully" });
         }
 
         #region Role
@@ -105,7 +143,7 @@ namespace ITBrainsBlogAPI.Controllers.Admin
             }
             else
             {
-                return BadRequest(result.Errors); 
+                return BadRequest(result.Errors);
             }
         }
 
@@ -116,17 +154,17 @@ namespace ITBrainsBlogAPI.Controllers.Admin
             var role = await _roleManager.FindByIdAsync(id.ToString());
             if (role == null)
             {
-                return NotFound("Role not found."); 
+                return NotFound("Role not found.");
             }
 
             var result = await _roleManager.DeleteAsync(role);
             if (result.Succeeded)
             {
-                return Ok("Role removed."); 
+                return Ok("Role removed.");
             }
             else
             {
-                return BadRequest(result.Errors); 
+                return BadRequest(result.Errors);
             }
         }
 
