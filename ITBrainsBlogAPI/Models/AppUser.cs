@@ -16,8 +16,8 @@ namespace ITBrainsBlogAPI.Models
         [JsonIgnore]
         public List<Like> Likes { get; set; }
         [JsonIgnore]
-        public List<RefreshToken> RefreshTokens { get; set; }
-        [JsonIgnore]
         public List<SavedBlog> SavedBlogs { get; set; }
+        [JsonIgnore]
+        public List<Notification> Notifications { get; set; }
     }
 }

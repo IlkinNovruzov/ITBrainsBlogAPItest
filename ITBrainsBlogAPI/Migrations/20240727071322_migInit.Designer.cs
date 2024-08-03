@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ITBrainsBlogAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240624123249_migInit")]
+    [Migration("20240727071322_migInit")]
     partial class migInit
     {
         /// <inheritdoc />
@@ -53,6 +53,20 @@ namespace ITBrainsBlogAPI.Migrations
                         .HasFilter("[NormalizedName] IS NOT NULL");
 
                     b.ToTable("AspNetRoles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Admin",
+                            NormalizedName = "ADMIN"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "User",
+                            NormalizedName = "USER"
+                        });
                 });
 
             modelBuilder.Entity("ITBrainsBlogAPI.Models.AppUser", b =>
@@ -133,6 +147,27 @@ namespace ITBrainsBlogAPI.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            AccessFailedCount = 0,
+                            ConcurrencyStamp = "9f2740b8-aac4-47d8-b024-9e249559b00b",
+                            Email = "inovruzov2004@gmail.com",
+                            EmailConfirmed = true,
+                            ImageUrl = "Image",
+                            LockoutEnabled = true,
+                            Name = "Ilkin",
+                            NormalizedEmail = "INOVRUZOV2004@GMAIL.COM",
+                            NormalizedUserName = "ILKIN.ADMIN",
+                            PasswordHash = "AQAAAAIAAYagAAAAEDQxfO7ygQuQ0BPPMJFNyzuNcFS/NbsxUFfVuZG/ztxtXLGcLBWT1flbKYPfkijfxw==",
+                            PhoneNumberConfirmed = false,
+                            SecurityStamp = "cf1751fa-9b49-4045-b6dc-bf8e8eaa28c9",
+                            Surname = "Novruzov",
+                            TwoFactorEnabled = false,
+                            UserName = "ilkin.admin"
+                        });
                 });
 
             modelBuilder.Entity("ITBrainsBlogAPI.Models.Blog", b =>
@@ -152,6 +187,9 @@ namespace ITBrainsBlogAPI.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -210,52 +248,6 @@ namespace ITBrainsBlogAPI.Migrations
                     b.ToTable("Likes");
                 });
 
-            modelBuilder.Entity("ITBrainsBlogAPI.Models.RefreshToken", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Created")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedByIp")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ReplacedByToken")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("Revoked")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RevokedByIp")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("RefreshTokens");
-                });
-
             modelBuilder.Entity("ITBrainsBlogAPI.Models.Review", b =>
                 {
                     b.Property<int>("Id")
@@ -274,8 +266,14 @@ namespace ITBrainsBlogAPI.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("Date")
+                    b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LikeCount")
+                        .HasColumnType("int");
 
                     b.Property<int?>("ParentReviewId")
                         .HasColumnType("int");
@@ -391,6 +389,13 @@ namespace ITBrainsBlogAPI.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("AspNetUserRoles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            UserId = 1,
+                            RoleId = 1
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>", b =>
@@ -451,17 +456,6 @@ namespace ITBrainsBlogAPI.Migrations
                     b.Navigation("AppUser");
 
                     b.Navigation("Blog");
-                });
-
-            modelBuilder.Entity("ITBrainsBlogAPI.Models.RefreshToken", b =>
-                {
-                    b.HasOne("ITBrainsBlogAPI.Models.AppUser", "User")
-                        .WithMany("RefreshTokens")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ITBrainsBlogAPI.Models.Review", b =>
@@ -565,8 +559,6 @@ namespace ITBrainsBlogAPI.Migrations
                     b.Navigation("Blogs");
 
                     b.Navigation("Likes");
-
-                    b.Navigation("RefreshTokens");
 
                     b.Navigation("Reviews");
 

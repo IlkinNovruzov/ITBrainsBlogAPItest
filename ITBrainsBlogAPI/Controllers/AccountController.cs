@@ -34,8 +34,10 @@ namespace ITBrainsBlogAPI.Controllers
         private readonly TokenService _tokenService;
         public AzureBlobService _service;
         private readonly AppDbContext _context;
+        private readonly FirebaseStorageService _firebaseStorageService;
+        private readonly NotificationService _notificationService;
 
-        public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IEmailService emailService, IConfiguration configuration, TokenService tokenService, AzureBlobService service, AppDbContext context)
+        public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IEmailService emailService, IConfiguration configuration, TokenService tokenService, AzureBlobService service, AppDbContext context, FirebaseStorageService firebaseStorageService, NotificationService notificationService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -44,6 +46,8 @@ namespace ITBrainsBlogAPI.Controllers
             _tokenService = tokenService;
             _service = service;
             _context = context;
+            _firebaseStorageService = firebaseStorageService;
+            _notificationService = notificationService;
         }
 
         [HttpPost("register")]
@@ -54,7 +58,7 @@ namespace ITBrainsBlogAPI.Controllers
                 return BadRequest(ModelState);
             }
 
-            var user = new AppUser { UserName = model.Email, Email = model.Email, Name = model.Name, Surname = model.Surname, ImageUrl = "https://itbrainsblogapistorage.blob.core.windows.net/itbcontainer/defaultimage.png" };
+            var user = new AppUser { UserName = model.Email, Email = model.Email, Name = model.Name, Surname = model.Surname, ImageUrl = "https://storage.googleapis.com/construction-740fe.appspot.com/defaultimage.png" };
             var result = await _userManager.CreateAsync(user, model.Password);
             if (result.Succeeded)
             {
@@ -111,7 +115,7 @@ namespace ITBrainsBlogAPI.Controllers
             {
                 var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                 var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-                var confirmationLink = $"http://localhost:5173/confirm-email?userId={user.Id}&token={encodedToken}";
+                var confirmationLink = $"https://itb-blog.vercel.app/confirm-email?userId={user.Id}&token={encodedToken}";
                 try
                 {
                     await _emailService.SendEmailAsync(model.Email, "Confirm your email", $"Please confirm your account by <a href='{confirmationLink}'>clicking here</a>.");
@@ -128,7 +132,7 @@ namespace ITBrainsBlogAPI.Controllers
 
             if (result.Succeeded)
             {
-                var jwtToken =await _tokenService.GenerateToken(user);
+                var jwtToken = await _tokenService.GenerateToken(user);
                 return Ok(jwtToken);
             }
 
@@ -187,8 +191,6 @@ namespace ITBrainsBlogAPI.Controllers
             });
         }
 
-
-
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser([FromRoute] int id)
         {
@@ -196,7 +198,6 @@ namespace ITBrainsBlogAPI.Controllers
                 .Include(u => u.Reviews)
                 .Include(u => u.Blogs)
                 .Include(u => u.Likes)
-                .Include(u => u.RefreshTokens)
                 .Include(u => u.SavedBlogs)
                 .SingleOrDefaultAsync(u => u.Id == id);
 
@@ -208,7 +209,6 @@ namespace ITBrainsBlogAPI.Controllers
             _context.Reviews.RemoveRange(user.Reviews);
             _context.Blogs.RemoveRange(user.Blogs);
             _context.Likes.RemoveRange(user.Likes);
-            _context.RefreshTokens.RemoveRange(user.RefreshTokens);
             _context.SavedBlogs.RemoveRange(user.SavedBlogs);
 
             var result = await _userManager.DeleteAsync(user);
@@ -221,7 +221,6 @@ namespace ITBrainsBlogAPI.Controllers
 
             return Ok(new { Message = "User deleted successfully" });
         }
-
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUser([FromRoute] int id)
@@ -347,7 +346,7 @@ namespace ITBrainsBlogAPI.Controllers
             {
                 return NotFound(new { Message = "User not found" });
             }
-            user.ImageUrl = "https://itbblogstorage.blob.core.windows.net/itbcontainer/0e39b3d3-971a-43c4-bf37-5f517b6bd0c8_defaultimage.png";
+            user.ImageUrl = "https://storage.googleapis.com/construction-740fe.appspot.com/defaultimage.png";
             await _userManager.UpdateAsync(user);
             return Ok(new { Message = "Profile image removed successfully", ImageUrl = user.ImageUrl });
         }
@@ -366,18 +365,14 @@ namespace ITBrainsBlogAPI.Controllers
             }
             if (model.ImageDeleted)
             {
-                user.ImageUrl = "https://itbrainsblogapistorage.blob.core.windows.net/itbcontainer/defaultimage.png";
+                user.ImageUrl = "https://storage.googleapis.com/construction-740fe.appspot.com/defaultimage.png";
             }
             if (model.ImgFile != null)
             {
-                if (!FileExtensions.IsImage(model.ImgFile))
-                {
-                    return BadRequest("This file type is not accepted.");
-                }
+                if (!FileExtensions.IsImage(model.ImgFile)) return BadRequest("This file type is not accepted.");
 
-                var fileName = await _service.UploadFile(model.ImgFile);
-                var profileImageUrl = $"https://itbrainsblogapistorage.blob.core.windows.net/itbcontainer/{fileName}";
-                user.ImageUrl = profileImageUrl;
+                var fileUrl = await _firebaseStorageService.UploadFileAsync(model.ImgFile);
+                user.ImageUrl = fileUrl;
             }
             user.Name = model.Name;
             user.Surname = model.Surname;
@@ -397,9 +392,37 @@ namespace ITBrainsBlogAPI.Controllers
 
         }
 
+        #region Notifications
 
+        [HttpGet("{userId}")]
+        public async Task<ActionResult<List<Notification>>> GetUserNotifications(int userId)
+        {
+            var notifications = await _notificationService.GetUserNotifications(userId);
+            return Ok(notifications);
+        }
 
+        [HttpGet("{userId}/unread")]
+        public async Task<ActionResult<List<Notification>>> GetUnreadNotifications(int userId)
+        {
+            var notifications = await _notificationService.GetUnreadNotifications(userId);
+            return Ok(notifications);
+        }
 
+        [HttpPost("mark-as-read/{notificationId}")]
+        public async Task<ActionResult> MarkNotificationAsRead(int notificationId)
+        {
+            await _notificationService.MarkNotificationAsRead(notificationId);
+            return NoContent();
+        }
+
+        [HttpPost("mark-all-as-read/{userId}")]
+        public async Task<ActionResult> MarkAllNotificationsAsRead(int userId)
+        {
+            await _notificationService.MarkAllNotificationsAsRead(userId);
+            return NoContent();
+        }
+
+        #endregion
 
 
 

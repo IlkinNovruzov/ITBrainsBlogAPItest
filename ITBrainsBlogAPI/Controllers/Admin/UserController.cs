@@ -15,14 +15,16 @@ namespace ITBrainsBlogAPI.Controllers.Admin
         private readonly RoleManager<AppRole> _roleManager;
         private readonly AppDbContext _context;
         private readonly TokenService _tokenService;
+        private readonly FirebaseStorageService _firebaseStorageService;
 
 
-        public UserController(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, AppDbContext context, TokenService tokenService)
+        public UserController(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, AppDbContext context, TokenService tokenService, FirebaseStorageService firebaseStorageService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context;
             _tokenService = tokenService;
+            _firebaseStorageService = firebaseStorageService;
         }
 
         [HttpGet]
@@ -32,20 +34,20 @@ namespace ITBrainsBlogAPI.Controllers.Admin
             return Ok(users);
         }
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser([FromRoute] int id, [FromHeader(Name = "Authorization")] string token)
+        public async Task<IActionResult> DeleteUser([FromRoute] int id)
         {
-            var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
+            //var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
 
-            if (user == null) return Unauthorized(new { Message = "Invalid token" });
+            //if (user == null) return Unauthorized(new { Message = "Invalid token" });
 
-            if (!await _userManager.IsInRoleAsync(user, "admin")) return Forbid();
+            //if (!await _userManager.IsInRoleAsync(user, "admin")) return Forbid();
 
             var removeUser = await _userManager.Users
                 .Include(u => u.Reviews)
                 .Include(u => u.Blogs)
                 .Include(u => u.Likes)
-                .Include(u => u.RefreshTokens)
                 .Include(u => u.SavedBlogs)
+                .Include(u => u.Notifications)
                 .SingleOrDefaultAsync(u => u.Id == id);
 
             if (removeUser == null) return NotFound(new { Message = "User Not Found" });
@@ -53,7 +55,6 @@ namespace ITBrainsBlogAPI.Controllers.Admin
             _context.Reviews.RemoveRange(removeUser.Reviews);
             _context.Blogs.RemoveRange(removeUser.Blogs);
             _context.Likes.RemoveRange(removeUser.Likes);
-            _context.RefreshTokens.RemoveRange(removeUser.RefreshTokens);
             _context.SavedBlogs.RemoveRange(removeUser.SavedBlogs);
 
             var result = await _userManager.DeleteAsync(removeUser);

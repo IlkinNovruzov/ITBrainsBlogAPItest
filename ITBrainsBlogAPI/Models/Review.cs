@@ -17,5 +17,6 @@ namespace ITBrainsBlogAPI.Models
         public Review? ParentReview { get; set; }
         public List<Review> Reviews { get; set; }
         public int LikeCount { get; set; }
+        public bool IsActive { get; set; }
     }
 }

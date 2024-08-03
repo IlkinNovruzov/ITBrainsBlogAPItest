@@ -11,9 +11,7 @@ namespace ITBrainsBlogAPI.Models
         public AppUser AppUser { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        [JsonIgnore]
         public List<Like> Likes { get; set; }
-        [JsonIgnore]
         public List<SavedBlog> SavedBlogs { get; set; }
         public List<Image> Images { get; set; }
         public List<Review> Reviews { get; set; }
@@ -21,5 +19,7 @@ namespace ITBrainsBlogAPI.Models
         public int ReviewCount => Reviews?.Count ?? 0;
         public int LikeCount => Likes?.Count ?? 0;
         public int SaveCount => SavedBlogs?.Count ?? 0;
+        public bool IsActive { get; set; }
+
     }
 }

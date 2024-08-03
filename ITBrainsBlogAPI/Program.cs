@@ -36,17 +36,22 @@ namespace ITBrainsBlogAPI
             // Configure CORS
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowSpecificOrigin",
-                    builder => builder.WithOrigins("http://127.0.0.1:5500", "http://localhost:5173", "https://itb-blog.vercel.app")
-                                      .AllowAnyMethod()
-                                      .AllowAnyHeader());
+                options.AddPolicy(name: "AllowSpecificOrigin",
+                                  policy =>
+                                  {
+                                      policy.WithOrigins("http://127.0.0.1:5500", "http://localhost:5173")
+                                            .AllowAnyMethod()
+                                            .AllowAnyHeader();
+                                  });
             });
-             
+
+
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddScoped<Services.IEmailService, Services.EmailSender>();
             builder.Services.AddScoped<AzureBlobService>();
+            builder.Services.AddSingleton<FirebaseStorageService>();
             builder.Services.AddScoped<TokenService>();
             builder.Services.AddAutoMapper(typeof(MappingProfile));
             // JWT Authentication
@@ -70,15 +75,8 @@ namespace ITBrainsBlogAPI
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
                 };
             })
-            .AddCookie()
-            .AddGoogle(options =>
-            {
-                // Google client ID and secret configuration
-                IConfigurationSection googleAuthNSection = builder.Configuration.GetSection("Authentication:Google");
-                options.ClientId = googleAuthNSection["ClientId"];
-                options.ClientSecret = googleAuthNSection["ClientSecret"];
-               // options.CallbackPath = "/api/account/googleresponse";
-            });
+            .AddCookie();
+           
             builder.Services.Configure<IdentityOptions>(options =>
             {
                 // Password settings.
@@ -104,16 +102,11 @@ namespace ITBrainsBlogAPI
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
-                app.UseSwaggerUI(c =>
-                {
-                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Dispatch Api V1");
-                    c.RoutePrefix = string.Empty;
-                });
+                app.UseSwaggerUI();
             }
 
             app.UseHttpsRedirection();
             app.UseRouting();
-
             // Enable CORS
             app.UseCors("AllowSpecificOrigin");
 

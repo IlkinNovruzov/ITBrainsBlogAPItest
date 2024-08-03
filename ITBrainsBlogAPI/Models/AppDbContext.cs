@@ -14,8 +14,8 @@ namespace ITBrainsBlogAPI.Models
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Image> Images { get; set; }
         public DbSet<Like> Likes { get; set; }
-        public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<SavedBlog> SavedBlogs { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -32,6 +32,12 @@ namespace ITBrainsBlogAPI.Models
                 .WithMany(u => u.Reviews)
                 .HasForeignKey(r => r.AppUserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Notification>()
+              .HasOne(n => n.AppUser)
+              .WithMany(u => u.Notifications)
+              .HasForeignKey(n => n.AppUserId)
+              .OnDelete(DeleteBehavior.Cascade);
 
             // Relationship with Blog
             modelBuilder.Entity<Review>()
@@ -56,11 +62,7 @@ namespace ITBrainsBlogAPI.Models
                 .HasForeignKey(l => l.BlogId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<RefreshToken>()
-           .HasOne(rt => rt.User)
-           .WithMany(u => u.RefreshTokens)
-           .HasForeignKey(rt => rt.UserId);
-
+          
             modelBuilder.Entity<SavedBlog>()
    .HasKey(l => new { l.AppUserId, l.BlogId });
 
@@ -88,6 +90,7 @@ namespace ITBrainsBlogAPI.Models
                   UserName = "ilkin.admin",
                   Name = "Ilkin",
                   Surname = "Novruzov",
+                  ImageUrl="Image",
                   PasswordHash = hasher.HashPassword(null, "Admin.1234"),
                   Email = "inovruzov2004@gmail.com",
                   EmailConfirmed = true,

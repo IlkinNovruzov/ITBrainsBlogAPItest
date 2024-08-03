@@ -26,9 +26,10 @@ namespace ITBrainsBlogAPI.Controllers
         private readonly ILogger<WeatherForecastController> _logger;
         private readonly TokenService _tokenService;
         private readonly IMapper _mapper;
-        public AzureBlobService _service;
+        private readonly FirebaseStorageService _firebaseStorageService;
+        private readonly NotificationService _notificationService;
 
-        public BlogController(AppDbContext context, UserManager<AppUser> userManager, IConfiguration configuration, ILogger<WeatherForecastController> logger, TokenService tokenService, IMapper mapper, AzureBlobService service)
+        public BlogController(AppDbContext context, UserManager<AppUser> userManager, IConfiguration configuration, ILogger<WeatherForecastController> logger, TokenService tokenService, IMapper mapper, FirebaseStorageService firebaseStorageService, NotificationService notificationService)
         {
             _context = context;
             _userManager = userManager;
@@ -36,7 +37,8 @@ namespace ITBrainsBlogAPI.Controllers
             _logger = logger;
             _tokenService = tokenService;
             _mapper = mapper;
-            _service = service;
+            _firebaseStorageService = firebaseStorageService;
+            _notificationService = notificationService;
         }
 
         [HttpGet]
@@ -75,19 +77,13 @@ namespace ITBrainsBlogAPI.Controllers
         }
 
         [HttpPost("create")]
-        public async Task<ActionResult<Blog>> AddBlog([FromForm] CreateBlogDTO model, [FromHeader(Name = "Authorization")] string token)
+        public async Task<ActionResult<Blog>> AddBlog([FromBody] CreateBlogDTO model, [FromHeader(Name = "Authorization")] string token)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
 
-            if (user == null)
-            {
-                return NotFound("User not found.");
-            }
+            if (user == null) return NotFound("User not found.");
 
             try
             {
@@ -104,20 +100,12 @@ namespace ITBrainsBlogAPI.Controllers
                 _context.Blogs.Add(blog);
                 await _context.SaveChangesAsync();
 
-                foreach (var item in model.ImgFiles ?? Enumerable.Empty<IFormFile>())
+                foreach (var item in model.ImgURLs ?? Enumerable.Empty<string>())
                 {
-                    if (!FileExtensions.IsImage(item))
-                    {
-                        return BadRequest("This file type is not accepted.");
-                    }
-
-                    var imgUrl = await _service.UploadFile(item);
-                    var imageUrl = $"https://itbblogstorage.blob.core.windows.net/itbcontainer/{imgUrl}";
-
                     var img = new Image
                     {
                         BlogId = blog.Id,
-                        ImageUrl = imageUrl
+                        ImageUrl = item
                     };
 
                     _context.Images.Add(img);
@@ -135,25 +123,28 @@ namespace ITBrainsBlogAPI.Controllers
             }
         }
 
+        [HttpPost("image")]
+        public async Task<IActionResult> UploadImage([FromForm] IFormFile file)
+        {
+            if (!FileExtensions.IsImage(file)) return BadRequest("This file type is not accepted.");
+            var fileUrl = await _firebaseStorageService.UploadFileAsync(file);
+
+            return Ok(fileUrl);
+
+        }
+
+
+
         [HttpPut("edit/{blogId}")]
         public async Task<ActionResult<Blog>> EditBlog([FromRoute] int blogId, [FromForm] CreateBlogDTO model)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var user = await _userManager.GetUserAsync(User);
-            if (user == null || !User.Identity.IsAuthenticated)
-            {
-                return Unauthorized("Please login to edit a blog.");
-            }
+            if (user == null || !User.Identity.IsAuthenticated) return Unauthorized("Please login to edit a blog.");
 
             var existingBlog = await _context.Blogs.FindAsync(blogId);
-            if (existingBlog == null)
-            {
-                return NotFound("Blog not found.");
-            }
+            if (existingBlog == null) return NotFound("Blog not found.");
 
             if (existingBlog.AppUserId != user.Id)
             {
@@ -176,20 +167,13 @@ namespace ITBrainsBlogAPI.Controllers
                     _context.Images.RemoveRange(existingImages);
 
                     // Add new images
-                    foreach (var item in model.ImgFiles ?? Enumerable.Empty<IFormFile>())
+                    foreach (var item in model.ImgURLs ?? Enumerable.Empty<string>())
                     {
-                        if (!FileExtensions.IsImage(item))
-                        {
-                            return BadRequest("This file type is not accepted.");
-                        }
-
-                        var imgUrl = await _service.UploadFile(item);
-                        var imageUrl = $"https://itbblogstorage.blob.core.windows.net/blogcontainer/{imgUrl}";
 
                         var img = new Image
                         {
                             BlogId = existingBlog.Id,
-                            ImageUrl = imageUrl
+                            ImageUrl = item
                         };
 
                         _context.Images.Add(img);
@@ -231,7 +215,6 @@ namespace ITBrainsBlogAPI.Controllers
             await _context.SaveChangesAsync();
 
             return Ok("Removed");
-
         }
 
 
@@ -262,16 +245,10 @@ namespace ITBrainsBlogAPI.Controllers
         public async Task<ActionResult> LikeBlog([FromRoute] int blogId, [FromHeader(Name = "Authorization")] string token)
         {
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
-            if (user == null)
-            {
-                return Unauthorized("Invalid token or user.");
-            }
+            if (user == null) return Unauthorized("Invalid token or user.");
 
             var blog = await _context.Blogs.Include(b => b.Likes).FirstOrDefaultAsync(b => b.Id == blogId);
-            if (blog == null)
-            {
-                return NotFound("Blog not found.");
-            }
+            if (blog == null) return NotFound("Blog not found.");
 
             var existingLike = blog.Likes.FirstOrDefault(l => l.AppUserId == user.Id);
 
@@ -279,7 +256,6 @@ namespace ITBrainsBlogAPI.Controllers
             {
                 _context.Likes.Remove(existingLike);
                 await _context.SaveChangesAsync();
-                return Ok(blog);
             }
             else
             {
@@ -291,8 +267,10 @@ namespace ITBrainsBlogAPI.Controllers
 
                 _context.Likes.Add(like);
                 await _context.SaveChangesAsync();
-                return Ok(blog);
+                var message = $"{user.Name} liked your blog.";
+                await _notificationService.CreateNotification(blog.AppUserId, message);
             }
+            return Ok(blog);
         }
 
         [HttpGet("is-liked")]
@@ -350,16 +328,10 @@ namespace ITBrainsBlogAPI.Controllers
         public async Task<ActionResult<BlogDTO>> AddReviewBlog([FromBody] CreateReviewDTO model, [FromHeader(Name = "Authorization")] string token)
         {
             var user = await _tokenService.ValidateTokenAndGetUserAsync(token);
-            if (user == null)
-            {
-                return Unauthorized("Invalid token or user.");
-            }
+            if (user == null) return Unauthorized("Invalid token or user.");
 
             var blog = await _context.Blogs.FindAsync(model.BlogId);
-            if (blog == null)
-            {
-                return NotFound("Blog not found.");
-            }
+            if (blog == null) return NotFound("Blog not found.");
 
             Review? parentReview = null;
             if (model.ParentReviewId.HasValue)
@@ -381,6 +353,8 @@ namespace ITBrainsBlogAPI.Controllers
             _context.Reviews.Add(review);
             await _context.SaveChangesAsync();
 
+            var message = $"{user.Name} reviewed your blog.";
+            await _notificationService.CreateNotification(blog.AppUserId, message);
             return await GetBlog(model.BlogId);
         }
 
