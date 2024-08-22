@@ -133,8 +133,6 @@ namespace ITBrainsBlogAPI.Controllers
 
         }
 
-
-
         [HttpPut("edit/{blogId}")]
         public async Task<ActionResult<Blog>> EditBlog([FromRoute] int blogId, [FromForm] CreateBlogDTO model)
         {
@@ -270,7 +268,7 @@ namespace ITBrainsBlogAPI.Controllers
                 var message = $"{user.Name} liked your blog.";
                 await _notificationService.CreateNotification(blog.AppUserId, message);
             }
-            return Ok(blog);
+            return Ok();
         }
 
         [HttpGet("is-liked")]
@@ -471,7 +469,7 @@ namespace ITBrainsBlogAPI.Controllers
             {
                 _context.SavedBlogs.Remove(existingSave);
                 await _context.SaveChangesAsync();
-                return Ok(blog);
+                return Ok();
             }
             else
             {
@@ -483,7 +481,7 @@ namespace ITBrainsBlogAPI.Controllers
 
                 _context.SavedBlogs.Add(savedBlog);
                 await _context.SaveChangesAsync();
-                return Ok(blog);
+                return Ok();
             }
         }
 

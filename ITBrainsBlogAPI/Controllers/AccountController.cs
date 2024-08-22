@@ -58,7 +58,7 @@ namespace ITBrainsBlogAPI.Controllers
                 return BadRequest(ModelState);
             }
 
-            var user = new AppUser { UserName = model.Email, Email = model.Email, Name = model.Name, Surname = model.Surname, ImageUrl = "https://storage.googleapis.com/construction-740fe.appspot.com/defaultimage.png" };
+            var user = new AppUser { UserName = model.Email, Email = model.Email, Name = model.Name, Surname = model.Surname, ImageUrl = "https://firebasestorage.googleapis.com/v0/b/construction-740fe.appspot.com/o/xusk5bsm.shr?alt=media" };
             var result = await _userManager.CreateAsync(user, model.Password);
             if (result.Succeeded)
             {
@@ -74,7 +74,7 @@ namespace ITBrainsBlogAPI.Controllers
 
                 var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                 var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-                var confirmationLink = $"https://itb-blog.vercel.app/confirm-email?userId={user.Id}&token={encodedToken}";
+                var confirmationLink = $"http://localhost:5173/confirm-email?userId={user.Id}&token={encodedToken}";
                 try
                 {
                     await _emailService.SendEmailAsync(model.Email, "Confirm your email", $"Please confirm your account by <a href='{confirmationLink}'>clicking here</a>.");
@@ -394,29 +394,29 @@ namespace ITBrainsBlogAPI.Controllers
 
         #region Notifications
 
-        [HttpGet("{userId}")]
-        public async Task<ActionResult<List<Notification>>> GetUserNotifications(int userId)
+        [HttpGet("{userId}/notifications")]
+        public async Task<ActionResult<List<Notification>>> GetUserNotifications([FromRoute] int userId)
         {
             var notifications = await _notificationService.GetUserNotifications(userId);
             return Ok(notifications);
         }
 
         [HttpGet("{userId}/unread")]
-        public async Task<ActionResult<List<Notification>>> GetUnreadNotifications(int userId)
+        public async Task<ActionResult<List<Notification>>> GetUnreadNotifications([FromRoute] int userId)
         {
             var notifications = await _notificationService.GetUnreadNotifications(userId);
             return Ok(notifications);
         }
 
         [HttpPost("mark-as-read/{notificationId}")]
-        public async Task<ActionResult> MarkNotificationAsRead(int notificationId)
+        public async Task<ActionResult> MarkNotificationAsRead([FromRoute] int notificationId)
         {
             await _notificationService.MarkNotificationAsRead(notificationId);
             return NoContent();
         }
 
         [HttpPost("mark-all-as-read/{userId}")]
-        public async Task<ActionResult> MarkAllNotificationsAsRead(int userId)
+        public async Task<ActionResult> MarkAllNotificationsAsRead([FromRoute] int userId)
         {
             await _notificationService.MarkAllNotificationsAsRead(userId);
             return NoContent();

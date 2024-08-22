@@ -27,19 +27,19 @@ namespace ITBrainsBlogAPI.Services
         }
 
         public async Task<string> UploadFileAsync(IFormFile file)
-        {
+        { 
             if (file == null || !FileExtensions.IsImage(file))
             {
                 throw new ArgumentException("File cannot be null or empty.", nameof(file));
             }
 
             var objectName = Path.GetRandomFileName();
-
+            var contentType = file.ContentType;
             try
             {
                 using (var stream = file.OpenReadStream())
                 {
-                    await _storageClient.UploadObjectAsync(_bucketName, objectName, null, stream);
+                    await _storageClient.UploadObjectAsync(_bucketName, objectName, contentType, stream);
                 }
             }
             catch (Exception ex)
@@ -48,8 +48,8 @@ namespace ITBrainsBlogAPI.Services
                 Console.Error.WriteLine($"Dosya yükleme hatası: {ex.Message}");
                 throw;
             }
-
-            var url = $"https://storage.googleapis.com/{_bucketName}/{objectName}";
+            var url = $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{objectName}?alt=media";
+          //  var uxrl = $"https://storage.googleapis.com/{_bucketName}/{objectName}";
             return url;
         }
 

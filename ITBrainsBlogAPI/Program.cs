@@ -52,6 +52,7 @@ namespace ITBrainsBlogAPI
             builder.Services.AddScoped<Services.IEmailService, Services.EmailSender>();
             builder.Services.AddScoped<AzureBlobService>();
             builder.Services.AddSingleton<FirebaseStorageService>();
+            builder.Services.AddScoped<NotificationService>();
             builder.Services.AddScoped<TokenService>();
             builder.Services.AddAutoMapper(typeof(MappingProfile));
             // JWT Authentication
@@ -99,11 +100,11 @@ namespace ITBrainsBlogAPI
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
+            //if (app.Environment.IsDevelopment())
+            //{
                 app.UseSwagger();
                 app.UseSwaggerUI();
-            }
+            //}
 
             app.UseHttpsRedirection();
             app.UseRouting();
